@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Todo List</title>
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+        }
+
+        body {
+            background: linear-gradient(45deg, #4158D0, #C850C0, #FFCC70);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .task-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .glass {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container mx-auto max-w-6xl">
+        <!-- Header -->
+        <div class="glass p-6 mb-6">
+            <h1 class="text-3xl font-semibold text-white mb-4">Collaborative Todo List</h1>
+            <div class="flex flex-wrap gap-4">
+                <button id="exportPDF" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                    <i class="bi bi-file-pdf mr-2"></i>Export PDF
+                </button>
+                <button id="exportExcel" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition">
+                    <i class="bi bi-file-excel mr-2"></i>Export Excel
+                </button>
+            </div>
+        </div>
+
+        <!-- Checklist Section -->
+        <div class="glass p-6 mb-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-white">Monthly Checklist</h2>
+                <div class="flex gap-2">
+                    <button id="copyNextMonth" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition">
+                        Copy to Next Month
+                    </button>
+                    <button id="copyAllMonths" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition">
+                        Copy to All Months
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-white">
+                    <thead>
+                        <tr>
+                            <th class="text-left p-2">Task</th>
+                            <th class="text-left p-2">Amount (₹)</th>
+                            <th class="text-left p-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taskList">
+                        <!-- Tasks will be added here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4">
+                <div class="flex gap-2">
+                    <input type="text" id="newTask" placeholder="New task" class="task-input glass px-4 py-2 text-white w-full">
+                    <input type="number" id="newAmount" placeholder="Amount" class="task-input glass px-4 py-2 text-white w-32">
+                    <button id="addTask" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="glass p-6">
+            <h2 class="text-2xl font-semibold text-white mb-6">Expense Analytics</h2>
+            <div class="chart-container">
+                <canvas id="expenseChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Task Management
+        let tasks = [];
+        const taskList = document.getElementById('taskList');
+        const newTask = document.getElementById('newTask');
+        const newAmount = document.getElementById('newAmount');
+        const addTask = document.getElementById('addTask');
+
+        function updateChart() {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            const labels = tasks.map(task => task.name);
+            const data = tasks.map(task => task.amount);
+
+            if (window.myChart) {
+                window.myChart.destroy();
+            }
+
+            window.myChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)',
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTasks() {
+            taskList.innerHTML = tasks.map((task, index) => `
+                <tr>
+                    <td class="p-2">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                            onchange="toggleTask(${index})" class="mr-2">
+                        <span class="${task.completed ? 'line-through' : ''}">${task.name}</span>
+                    </td>
+                    <td class="p-2">₹${task.amount}</td>
+                    <td class="p-2">
+                        <button onclick="deleteTask(${index})" class="text-red-500 hover:text-red-600">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            updateChart();
+        }
+
+        function addNewTask() {
+            const taskName = newTask.value.trim();
+            const amount = parseFloat(newAmount.value) || 0;
+            
+            if (taskName) {
+                tasks.push({
+                    name: taskName,
+                    amount: amount,
+                    completed: false
+                });
+                newTask.value = '';
+                newAmount.value = '';
+                renderTasks();
+            }
+        }
+
+        function toggleTask(index) {
+            tasks[index].completed = !tasks[index].completed;
+            renderTasks();
+        }
+
+        function deleteTask(index) {
+            tasks.splice(index, 1);
+            renderTasks();
+        }
+
+        // Event Listeners
+        addTask.addEventListener('click', addNewTask);
+        newTask.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addNewTask();
+        });
+
+        document.getElementById('exportPDF').addEventListener('click', () => {
+            alert('PDF Export functionality would be implemented here');
+        });
+
+        document.getElementById('exportExcel').addEventListener('click', () => {
+            alert('Excel Export functionality would be implemented here');
+        });
+
+        document.getElementById('copyNextMonth').addEventListener('click', () => {
+            alert('Copy to Next Month functionality would be implemented here');
+        });
+
+        document.getElementById('copyAllMonths').addEventListener('click', () => {
+            alert('Copy to All Months functionality would be implemented here');
+        });
+
+        // Initialize with some sample data
+        tasks = [
+            { name: 'Sample Task 1', amount: 1000, completed: false },
+            { name: 'Sample Task 2', amount: 2000, completed: true },
+            { name: 'Sample Task 3', amount: 1500, completed: false }
+        ];
+        renderTasks();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
